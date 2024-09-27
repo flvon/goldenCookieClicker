@@ -65,7 +65,7 @@ formatter = logging.Formatter( fmt="{asctime} - {levelname} - {message}"
                               )
 
 console_handler = logging.StreamHandler()
-console_handler.setLevel( 'DEBUG' )
+console_handler.setLevel( 'INFO' ) # Change this to DEBUG if debugging the script is needed
 console_handler.setFormatter( formatter )
 logger.addHandler( console_handler )
 
