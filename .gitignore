@@ -3,3 +3,6 @@ logs/
 
 # Ignore all .log files
 *.log
+
+# Ignore any .exe files I create for personal use
+*.exe
