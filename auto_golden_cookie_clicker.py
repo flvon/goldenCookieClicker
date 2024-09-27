@@ -61,7 +61,7 @@ logger = logging.getLogger( 'Logger' )
 logger.setLevel( 'DEBUG' )
 formatter = logging.Formatter( fmt="{asctime} - {levelname} - {message}"
                               ,style="{"
-                              ,datefmt="%Y-%m-%d %H:%M"
+                              ,datefmt="%Y-%m-%d %H:%M:%S"
                               )
 
 console_handler = logging.StreamHandler()
