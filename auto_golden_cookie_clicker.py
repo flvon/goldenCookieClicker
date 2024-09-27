@@ -26,7 +26,6 @@ def find_and_click_golden_cookie(img_file_path):
 # Setting stable variables
 COOKIE_IMAGE_MONITOR = 'golden_cookie_monitor.png'
 COOKIE_IMAGE_DEFAULT = 'golden_cookie_default.png'
-current_dir = os.path.dirname( __file__ )
 
 img_file_name = COOKIE_IMAGE_MONITOR # If you want to use a different image, change this line
 
