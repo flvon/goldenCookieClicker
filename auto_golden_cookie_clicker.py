@@ -22,6 +22,7 @@ def find_and_click_golden_cookie(img_file_path, wait_time):
         else:
             logger.debug( 'Cookie hasn\'t spawned yet' )
         time.sleep( wait_time )
+    logger.debug( 'Leaving thread loop' )
 
 # Setting stable variables
 COOKIE_IMAGE_MONITOR = 'golden_cookie_monitor.png'
@@ -32,11 +33,11 @@ img_file_name = COOKIE_IMAGE_MONITOR # If you want to use a different image, cha
 
 
 # Asking for the wait time in seconds
-user_wait_input = input( 'How many seconds to wait between searches for the Golden Cookie\nThe smaller the value, the highest the CPU usage, but too high values might make you lose the cookie\nDefault is 5s')
+user_wait_input = input( 'How many seconds to wait between searches for the Golden Cookie\nThe smaller the value, the highest the CPU usage, but too high values might make you lose the cookie\nDefault is 5 seconds\n')
 if user_wait_input is None or user_wait_input == '':
-    wait_time = 5
+    wait_time = 5.0
 else:
-    wait_time = user_wait_input
+    wait_time = float( user_wait_input )
 
 
 
