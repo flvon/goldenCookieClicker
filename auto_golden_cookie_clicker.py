@@ -7,7 +7,7 @@ import logging
 import datetime
 from pathlib import Path
 
-def find_and_click_golden_cookie(img_file_path):
+def find_and_click_golden_cookie(img_file_path, wait_time):
     clicks = 0
     logger.info( 'Starting run' )
     while not stop_thread.is_set():
@@ -21,13 +21,24 @@ def find_and_click_golden_cookie(img_file_path):
             logger.info( 'Cookie found. Number of clicks this run: %d' % clicks)
         else:
             logger.debug( 'Cookie hasn\'t spawned yet' )
-        time.sleep( 5 )
+        time.sleep( wait_time )
 
 # Setting stable variables
 COOKIE_IMAGE_MONITOR = 'golden_cookie_monitor.png'
 COOKIE_IMAGE_DEFAULT = 'golden_cookie_default.png'
 
 img_file_name = COOKIE_IMAGE_MONITOR # If you want to use a different image, change this line
+
+
+
+# Asking for the wait time in seconds
+user_wait_input = input( 'How many seconds to wait between searches for the Golden Cookie\nThe smaller the value, the highest the CPU usage, but too high values might make you lose the cookie\nDefault is 5s')
+if user_wait_input is None or user_wait_input == '':
+    wait_time = 5
+else:
+    wait_time = user_wait_input
+
+
 
 # Asking for the path for the images to be searched
 user_img_input = input( 'Paste the full folder path where your golden cookie images are. The folder and images must exist prior to the execution.\nWill default to desktop/clicker/searched_images if left empty\n')
@@ -37,9 +48,13 @@ else:
     img_folder = user_img_input
 img_file_path = os.path.join( img_folder, img_file_name )
 
+
+
 #Setting logging path and file
 now = datetime.datetime.now()
 dt = now.strftime( "%Y%m%d_%H%M" )
+
+
 
 # Asking for the path where logs will be saved
 user_logger_input = input( 'Paste the full folder path you want to save your logs. Will default to desktop/clicker/logs if left empty\n')
@@ -50,10 +65,14 @@ else:
 
 logging_path = os.path.join( logger_folder, dt + '_golden_cookie_clicker.log' )
 
+
+
 # Creating logging file if it doesn't exist
 Path( logger_folder ).mkdir( parents=True, exist_ok=True )
 file = open( logging_path, 'a' )
 file.close()
+
+
 
 # Setting loggers
 logger = logging.getLogger( 'Logger' )
@@ -73,14 +92,11 @@ file_handler.setLevel( 'INFO' )
 file_handler.setFormatter( formatter )
 logger.addHandler( file_handler )
 
-# Setting golden cookie file path
 
-
-
-stop_thread = threading.Event()
 
 # Setting and starting thread
-t = threading.Thread( target=find_and_click_golden_cookie, args=( img_file_path, ), daemon=True ) # Using daemon=True as added security
+stop_thread = threading.Event()
+t = threading.Thread( target=find_and_click_golden_cookie, args=( img_file_path, wait_time, ), daemon=True ) # Using daemon=True as added security
 t.start()
 
 # This will hold the program on standby until you close the message box, then it will set the thread event to stop it
