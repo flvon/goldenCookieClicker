@@ -1,8 +1,10 @@
-# Ignore everything in the logs folder
-logs/
+# Used by pyinstaller to make executable
+dist/
+build/
 
 # Ignore all .log files
 *.log
 
-# Ignore any .exe files I create for personal use
+# Ignore any files I create for personal use
 *.exe
+*.spec
