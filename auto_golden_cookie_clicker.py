@@ -33,10 +33,11 @@ def create_folder_structure():
     global root_folder
     folder_path = os.path.join( root_folder, folder_list_level1[0] )
     Path( folder_path ).mkdir( parents=True, exist_ok=True )
+    folder_path = os.path.join( root_folder, folder_list_level1[1] )
     for level2 in screen_type:
         for level3 in seasons:
-            folder_path = os.path.join( root_folder, level2, level3 )
-            Path( folder_path ).mkdir( parents=True, exist_ok=True )
+            directory = os.path.join( folder_path, level2, level3 )
+            Path( directory ).mkdir( parents=True, exist_ok=True )
 
 def close_application():
     global root, stop_threads
@@ -118,9 +119,9 @@ def start_threads():
 
     # Setting image folders
     if l_entry_screen_type == 'monitor':
-        images_folder = os.path.join( l_root_folder, 'monitor' )
+        images_folder = os.path.join( l_root_folder, 'searched_images', 'monitor' )
     else:
-        images_folder = os.path.join( l_root_folder, 'default' )
+        images_folder = os.path.join( l_root_folder, 'searched_images', 'default' )
 
     if l_entry_season != 0:
         season_folder = season_folder_list[l_entry_season - 1]
