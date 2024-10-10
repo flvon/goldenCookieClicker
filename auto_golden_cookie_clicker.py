@@ -141,7 +141,7 @@ Golden Cookie: {str(l_cookie_wait)}  |  Fortune:{str(l_fortune_wait)}  |  Reinde
     if l_entry_season == 0 or l_entry_season == 1:
         target_images = [ os.path.join( images_folder, 'golden_cookie.png' ) ]
     else:
-        target_images = [ os.path.join(season_folder, imgs) for imgs in os.listdir(season_folder) if os.path.isfile( os.path.join(season_folder, imgs) ) ]
+        target_images = [ os.path.join(images_folder, season_folder, imgs) for imgs in os.listdir( os.path.join(images_folder, season_folder) ) if os.path.isfile( os.path.join(images_folder, season_folder, imgs) ) ]
     golden_cookie_clicker = threading.Thread( target=find_and_click_images, args=( 'Golden Cookie', target_images, l_cookie_wait, ), daemon=True ) # Using daemon=True as added security
     golden_cookie_clicker.start()
     threads_list.append( golden_cookie_clicker )
@@ -149,7 +149,7 @@ Golden Cookie: {str(l_cookie_wait)}  |  Fortune:{str(l_fortune_wait)}  |  Reinde
     # Setting thread that clicks on reindeer if Christmas Season is active
     if l_entry_season == 1:
         logger.info( 'Starting reindeer clicker' )
-        target_images = [ os.path.join(season_folder, imgs) for imgs in os.listdir(season_folder) if os.path.isfile( os.path.join(season_folder, imgs) ) ]
+        target_images = [ os.path.join(images_folder, season_folder, imgs) for imgs in os.listdir( os.path.join(images_folder, season_folder) ) if os.path.isfile( os.path.join(images_folder, season_folder, imgs) ) ]
         reindeer_clicker = threading.Thread( target=find_and_click_images, args=( 'Reindeer', target_images, l_reindeer_wait, ), daemon=True ) # Using daemon=True as added security
         reindeer_clicker.start()
         threads_list.append( reindeer_clicker )
