@@ -2,6 +2,9 @@
 dist/
 build/
 
+# Other automatically created folders
+__pycache__
+
 # Ignore all .log and .cfg files
 *.log
 *.cfg
