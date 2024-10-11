@@ -7,74 +7,19 @@ import datetime
 import threading
 import time
 import pyautogui
+import auxiliary_functions
 
 def get_root_filepath():
     global root_folder
-    root_folder = filedialog.askdirectory( title='Select folder', initialdir=os.path.join( os.environ['USERPROFILE'], 'Desktop', 'clicker' ) )
+    root_folder = filedialog.askdirectory( title='Select folder', initialdir=INITIAL_DIRECTORY )
     root_folder_label_return.config( text=root_folder )
-    
-def create_folder_structure():
-    folder_list_level1 = [
-          'logs'
-          ,'searched_images'
-    ]
-    screen_type = [
-         'default'
-         ,'monitor'
-    ]
-    seasons = [
-         'christmas'
-         ,'halloween'
-         ,'valentines'
-         ,'business_day'
-         ,'easter'
-    ]
-     
-    global root_folder
-    folder_path = os.path.join( root_folder, folder_list_level1[0] )
-    Path( folder_path ).mkdir( parents=True, exist_ok=True )
-    folder_path = os.path.join( root_folder, folder_list_level1[1] )
-    for level2 in screen_type:
-        for level3 in seasons:
-            directory = os.path.join( folder_path, level2, level3 )
-            Path( directory ).mkdir( parents=True, exist_ok=True )
 
 def close_application():
     global root, stop_threads
     stop_threads.set()
     root.destroy()
 
-def set_logging(root_folder):
-    #Setting logging path and file
-    now = datetime.datetime.now()
-    dt = now.strftime( "%Y%m%d_%H%M" )
-    log_folder = os.path.join( root_folder, 'logs' )
-    log_file_path = os.path.join( log_folder, dt + '_golden_cookie_clicker.log' )
-
-    # Creating logging file if it doesn't exist
-    Path( log_folder ).mkdir( parents=True, exist_ok=True )
-    file = open( log_file_path, 'a' )
-    file.close()
-
-    # Setting loggers
-    global logger
-    logger.setLevel( 'DEBUG' )
-    formatter = logging.Formatter( fmt="{asctime} - {levelname} - {message}"
-                                  ,style="{"
-                                  ,datefmt="%Y-%m-%d %H:%M:%S"
-                                  )
-
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel( 'INFO' ) # Change this to DEBUG if debugging the script is needed
-    console_handler.setFormatter( formatter )
-    logger.addHandler( console_handler )
-
-    file_handler = logging.FileHandler( filename=log_file_path, mode='a', encoding='utf-8' )
-    file_handler.setLevel( 'INFO' )
-    file_handler.setFormatter( formatter )
-    logger.addHandler( file_handler )
-
-def find_and_click_images(target, img_file_list, wait_time):
+def find_and_click_images(target, img_file_list, sleep):
     global logger
     clicks = 0
     time.sleep( 5 )
@@ -88,22 +33,57 @@ def find_and_click_images(target, img_file_list, wait_time):
                 pyautogui.click( x=x, y=y )
                 clicks += 1
                 logger.info( '%s found. Number of clicks this run: %d' % (target, clicks) )
-        time.sleep( wait_time )
+        time.sleep( sleep )
     logger.debug( 'Leaving thread loop' )
+    return
+
+def read_config_file_and_update_dialogs():
+    global root_folder_label_return, entry_screen_type, fortune, fortune_sleep, entry_season, cookie_sleep, reindeer_sleep
+    global logger
+    global configs
+    config_file = filedialog.askopenfilename( title='Select folder', initialdir=INITIAL_DIRECTORY, filetypes=[('Configuration files', '*.cfg')] )
+    try: configs = auxiliary_functions.read_configs( config_file )
+    except: print( f'Error: couldn\'t read file\nResponse from dialog was {config_file}' )
+    else:
+        root_folder_label_return.config( text=configs['root_path'] )
+        if configs['screen_type'] == 'Monitor': entry_screen_type.current( 0 )
+        else: entry_screen_type.current( 1 )
+        fortune.set( configs['click_fortune'] )
+        fortune_sleep.set( configs['fortune_sleep'] )
+        entry_season.current( configs['season'] )
+        cookie_sleep.set( configs['golden_cookie_sleep'] )
+        reindeer_sleep.set( configs['reindeer_sleep'] )
+
+def save_configs():
+    config_file = filedialog.asksaveasfilename( title='Select file to save', initialdir=INITIAL_DIRECTORY, filetypes=[('Configuration files', '*.cfg')] )
+    confs={}
+    confs['root_path'] = root_folder_label_return.cget('text')
+    confs['screen_type'] = entry_screen_type.get()
+    confs['click_fortune'] = fortune.get()
+    confs['fortune_sleep'] = fortune_sleep.get()
+    confs['season'] = str( entry_season.current() )
+    confs['golden_cookie_sleep'] = cookie_sleep.get()
+    confs['reindeer_sleep'] = reindeer_sleep.get()
+    auxiliary_functions.save_configs_to_file( config_file, confs )
 
 def start_threads():
     # Getting settings
-    global root_folder, entry_screen_type, fortune, fortune_wait, entry_season, cookie_wait, reindeer_wait
+    global root_folder_label_return, entry_screen_type, fortune, fortune_sleep, entry_season, cookie_sleep, reindeer_sleep
     global logger
     global threads_list
+    global configs
 
-    l_root_folder = os.path.abspath(root_folder_label_return.cget('text'))
-    l_entry_screen_type = entry_screen_type.get()
-    l_fortune = fortune.get()
-    l_fortune_wait = float(fortune_wait.get())
+    # Setting logging
+    l_root_folder = root_folder_label_return.cget('text')
+    logger = auxiliary_functions.set_logging( l_root_folder, log_file_name='golden_cookie_clicker' )
+
+    l_screen_type = entry_screen_type.get()
+    l_click_fortune = fortune.get()
+    l_fortune_sleep = float(fortune_sleep.get())
     l_entry_season = entry_season.current()
-    l_cookie_wait = float(cookie_wait.get())
-    l_reindeer_wait = float(reindeer_wait.get())
+    l_cookie_sleep = float(cookie_sleep.get())
+    l_reindeer_sleep = float(reindeer_sleep.get())
+
 
     logger.info( 'Starting application' )
 
@@ -115,10 +95,9 @@ def start_threads():
         ,'easter'
     ]
 
-    set_logging( l_root_folder )
 
     # Setting image folders
-    if l_entry_screen_type == 'monitor':
+    if l_screen_type == 'Monitor':
         images_folder = os.path.join( l_root_folder, 'searched_images', 'monitor' )
     else:
         images_folder = os.path.join( l_root_folder, 'searched_images', 'default' )
@@ -129,11 +108,11 @@ def start_threads():
 
     logger.info( f"""Configurations:
 Root folder: {str(l_root_folder)}
-Screen type: {l_entry_screen_type}
+Screen type: {l_screen_type}
 Season: {season_folder}
-Click fortune cookie: {str(l_fortune)}
-Wait times: 
-Golden Cookie: {str(l_cookie_wait)}  |  Fortune:{str(l_fortune_wait)}  |  Reindeer: {str(l_reindeer_wait)}""" )
+Click fortune cookie: {str(l_click_fortune)}
+Sleep timess: 
+Golden Cookie: {str(l_cookie_sleep)}  |  Fortune:{str(l_fortune_sleep)}  |  Reindeer: {str(l_reindeer_sleep)}""" )
 
 
     # Setting thread that clicks on the golden cookie
@@ -142,7 +121,7 @@ Golden Cookie: {str(l_cookie_wait)}  |  Fortune:{str(l_fortune_wait)}  |  Reinde
         target_images = [ os.path.join( images_folder, 'golden_cookie.png' ) ]
     else:
         target_images = [ os.path.join(images_folder, season_folder, imgs) for imgs in os.listdir( os.path.join(images_folder, season_folder) ) if os.path.isfile( os.path.join(images_folder, season_folder, imgs) ) ]
-    golden_cookie_clicker = threading.Thread( target=find_and_click_images, args=( 'Golden Cookie', target_images, l_cookie_wait, ), daemon=True ) # Using daemon=True as added security
+    golden_cookie_clicker = threading.Thread( target=find_and_click_images, args=( 'Golden Cookie', target_images, l_cookie_sleep, ), daemon=True ) # Using daemon=True as added security
     golden_cookie_clicker.start()
     threads_list.append( golden_cookie_clicker )
 
@@ -150,25 +129,34 @@ Golden Cookie: {str(l_cookie_wait)}  |  Fortune:{str(l_fortune_wait)}  |  Reinde
     if l_entry_season == 1:
         logger.info( 'Starting reindeer clicker' )
         target_images = [ os.path.join(images_folder, season_folder, imgs) for imgs in os.listdir( os.path.join(images_folder, season_folder) ) if os.path.isfile( os.path.join(images_folder, season_folder, imgs) ) ]
-        reindeer_clicker = threading.Thread( target=find_and_click_images, args=( 'Reindeer', target_images, l_reindeer_wait, ), daemon=True ) # Using daemon=True as added security
+        reindeer_clicker = threading.Thread( target=find_and_click_images, args=( 'Reindeer', target_images, l_reindeer_sleep, ), daemon=True ) # Using daemon=True as added security
         reindeer_clicker.start()
         threads_list.append( reindeer_clicker )
 
-    if l_fortune == 1:
+    if l_click_fortune == 1:
         # Setting thread that clicks on the fortune news ticker
         logger.info( 'Starting fortune news ticker clicker' )
         target_images = [ os.path.join( images_folder, 'fortune_cookie.png' ) ]
-        fortune_clicker = threading.Thread( target=find_and_click_images, args=( 'Fortune', target_images, l_fortune_wait, ), daemon=True ) # Using daemon=True as added security
+        fortune_clicker = threading.Thread( target=find_and_click_images, args=( 'Fortune', target_images, l_fortune_sleep, ), daemon=True ) # Using daemon=True as added security
         fortune_clicker.start()
         threads_list.append( fortune_clicker )
 
+INITIAL_DIRECTORY = os.path.join( os.environ['USERPROFILE'], 'Desktop', 'clicker' )
+DEFAULT_SCREEN_TYPE = "Monitor"
+DEFAULT_CLICK_FORTUNE = "0"
+DEFAULT_FORTUNE_SLEEP = "5.0"
+DEFAULT_SEASON = "0"
+DEFAULT_GOLDEN_COOKIE_SLEEP = "5.0"
+DEFAULT_REINDEER_SLEEP = "5.0"
 
-logger = logging.getLogger( 'Logger' )
+# Initializing config
+configs = {}
+
 
 root = Tk()
 root.title("Cookie Clicker automations")
 
-frame = ttk.Frame(root, padding="5 5 12 12")
+frame = ttk.Frame( root, padding=(5, 5) )
 frame.grid(column=0, row=0, sticky=(N, W, E, S))
 root.columnconfigure(0, weight=1)
 root.rowconfigure(0, weight=1)
@@ -176,18 +164,29 @@ root.rowconfigure(0, weight=1)
 row_num = 1
 column_num = 1
 
+# Read config file
+config_label = ttk.Label( frame, text='Open configuration file' )
+config_label.grid( row=row_num, column=column_num, sticky=(N, S, W, E))
+column_num += 1
+config_button = ttk.Button( frame, text='...', command=read_config_file_and_update_dialogs )
+config_button.grid( row=row_num, column=column_num, sticky=W )
+column_num += 1
+save_config_button = Button( frame, text='Save configs', command=save_configs )
+save_config_button.grid( row=row_num, column=column_num, sticky=W )
+
+row_num += 1
+column_num = 1
 
 # Select root folder
 root_folder_label = ttk.Label( frame, text='Select image root directory' )
 root_folder_label.grid( row=row_num, column=column_num, sticky=(N, S, W, E))
 column_num += 1
-root_folder = StringVar()
-default_filepath = os.path.join( os.environ['USERPROFILE'], 'Desktop', 'clicker' )
-root_folder_label_return = ttk.Label( frame, padding=(5, 0), text=default_filepath, width=-10, background='white' )
+default_filepath = INITIAL_DIRECTORY
+root_folder_label_return = ttk.Label( frame, padding=(20, 0), text=default_filepath, width=-10, background='white' )
 root_folder_label_return.grid( row=row_num, column=column_num, sticky=(N, S, W, E) )
 column_num += 1
 root_folder_button = ttk.Button( frame, text='...', command=get_root_filepath )
-root_folder_button.grid( row=row_num, column=column_num, sticky=(W, E) )
+root_folder_button.grid( row=row_num, column=column_num, sticky=W )
 
 row_num += 1
 column_num = 1
@@ -196,8 +195,8 @@ column_num = 1
 folder_structure = ttk.Label( frame, text='If you haven\'t done it before,\ncreate the folder structure now' )
 folder_structure.grid( row=row_num, column=column_num, sticky=(N, S, W, E) )
 column_num += 1
-folder_structure_button = ttk.Button( frame, text='Create', command=create_folder_structure )
-folder_structure_button.grid( row=row_num, column=column_num, sticky=(N, S, W, E) )
+folder_structure_button = ttk.Button( frame, text='Create', command=lambda: auxiliary_functions.create_folder_structure( root_folder_label_return.cget('text') ) )
+folder_structure_button.grid( row=row_num, column=column_num, sticky=W )
 
 row_num += 1
 column_num = 1
@@ -210,13 +209,12 @@ row_num += 1
 column_num = 1
 
 # Select if you're using a monitor or your laptop default screen
-screen_type = StringVar()
 screen_type_text = ttk.Label( frame, text='Select the screen type' )
 screen_type_text.grid( row=row_num, column=column_num, sticky=(N, S, W, E) )
 column_num += 1
 entry_screen_type = ttk.Combobox( frame, values=[ 'Monitor', 'Laptop screen' ] )
 entry_screen_type.current( 0 )
-entry_screen_type.grid( row=row_num, column=column_num, sticky=(N, S, W, E) )
+entry_screen_type.grid( row=row_num, column=column_num, sticky=W )
 
 row_num += 1
 column_num = 1
@@ -231,15 +229,15 @@ column_num = 1
 # Select if you want the program to click on fortune cookie news tickers
 fortune = IntVar()
 fortune_cookie = ttk.Checkbutton( frame, variable=fortune, text='Click fortune news tickers' )
-fortune_cookie.grid( row=row_num, column=column_num, sticky=(N, S, W, E) )
+fortune_cookie.grid( row=row_num, column=column_num, sticky=W )
 column_num += 1
-fortune_cookie_wait = ttk.Label( frame, text='Wait time (seconds)' )
-fortune_cookie_wait.grid( row=row_num, column=column_num, sticky=(N, S, W, E) )
+fortune_cookie_sleep = ttk.Label( frame, text='Sleep times (seconds)' )
+fortune_cookie_sleep.grid( row=row_num, column=column_num, sticky=E )
 column_num += 1
-fortune_wait = StringVar()
-fortune_wait_entry = ttk.Entry( frame, textvariable=fortune_wait, justify='center' )
-fortune_wait_entry.insert( index=0, string='5.0' )
-fortune_wait_entry.grid( row=row_num, column=column_num, sticky=(N, S, W, E) )
+fortune_sleep = StringVar()
+fortune_sleep_entry = ttk.Entry( frame, textvariable=fortune_sleep, justify='center' )
+fortune_sleep_entry.insert( index=0, string=DEFAULT_FORTUNE_SLEEP )
+fortune_sleep_entry.grid( row=row_num, column=column_num, sticky=W )
 
 row_num += 1
 column_num = 1
@@ -250,41 +248,41 @@ season_text.grid( row=row_num, column=column_num, sticky=(N, S, W, E) )
 column_num += 1
 entry_season = ttk.Combobox( frame, justify='center' , values=[ 'No season', 'Christmas', 'Halloween', 'Valentine\'s', 'Business Day', 'Easter' ] )
 entry_season.current( 0 )
-entry_season.grid( row=row_num, column=column_num, sticky=(N, S, W, E) )
+entry_season.grid( row=row_num, column=column_num, sticky=W )
 
 row_num += 1
 column_num = 1
 
-# Wait time for golden cookie in seconds
-cookie_wait_text = ttk.Label( frame, text='Wait time for golden cookie (seconds)' )
-cookie_wait_text.grid( row=row_num, column=column_num, sticky=(N, S, W, E) )
+# Sleep times for golden cookie in seconds
+cookie_sleep_text = ttk.Label( frame, text='Sleep times for golden cookie (seconds)' )
+cookie_sleep_text.grid( row=row_num, column=column_num, sticky=(N, S, W, E) )
 column_num += 1
-cookie_wait = StringVar()
-cookie_wait_entry = ttk.Entry( frame, textvariable=cookie_wait, justify='center' )
-cookie_wait_entry.insert( index=0, string='5.0' )
-cookie_wait_entry.grid( row=row_num, column=column_num, sticky=(N, S, W, E) )
+cookie_sleep = StringVar()
+cookie_sleep_entry = ttk.Entry( frame, textvariable=cookie_sleep, justify='center' )
+cookie_sleep_entry.insert( index=0, string=DEFAULT_GOLDEN_COOKIE_SLEEP )
+cookie_sleep_entry.grid( row=row_num, column=column_num, sticky=W )
 
 row_num += 1
 column_num = 1
 
-# Wait time for reindeer in seconds
-reindeer_wait_text = ttk.Label( frame, text='Wait time for reindeer (seconds)' )
-reindeer_wait_text.grid( row=row_num, column=column_num, sticky=(N, S, W, E) )
+# Sleep times for reindeer in seconds
+reindeer_sleep_text = ttk.Label( frame, text='Sleep times for reindeer (seconds)' )
+reindeer_sleep_text.grid( row=row_num, column=column_num, sticky=(N, S, W, E) )
 column_num += 1
-reindeer_wait = StringVar()
-reindeer_wait_entry = ttk.Entry( frame, textvariable=reindeer_wait, justify='center' )
-reindeer_wait_entry.insert( index=0, string='5.0' )
-reindeer_wait_entry.grid( row=row_num, column=column_num, sticky=(N, S, W, E) )
+reindeer_sleep = StringVar()
+reindeer_sleep_entry = ttk.Entry( frame, textvariable=reindeer_sleep, justify='center' )
+reindeer_sleep_entry.insert( index=0, string=DEFAULT_REINDEER_SLEEP )
+reindeer_sleep_entry.grid( row=row_num, column=column_num, sticky=W )
 
 row_num += 1
 column_num = 2
 
 # Buttons to start and cancel the applications
 start_button = Button( frame, text='Start', bg='#ccffcc', command=start_threads )
-start_button.grid( row=row_num, column=column_num, sticky=(N, S, W, E) )
+start_button.grid( row=row_num, column=column_num, sticky=E )
 column_num += 1
 cancel_button = Button( frame, text='Cancel/Stop', bg='#ffcccc', command=close_application )
-cancel_button.grid( row=row_num, column=column_num, sticky=(N, S, W, E) )
+cancel_button.grid( row=row_num, column=column_num, sticky=W )
 
 for child in frame.winfo_children(): 
     child.grid_configure(padx=5, pady=5)
@@ -293,8 +291,3 @@ threads_list = []
 stop_threads = threading.Event()
 
 root.mainloop()
-
-for t in threads_list:
-    t.join()
-
-logger.info( 'Ending run' )
