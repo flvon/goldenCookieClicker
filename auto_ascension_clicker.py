@@ -1,10 +1,7 @@
-import ctypes
 import threading
 import time
 import pyautogui
 import os
-import logging
-import datetime
 from pathlib import Path
 import keyboard
 from tkinter import *
