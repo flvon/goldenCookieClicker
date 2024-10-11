@@ -7,89 +7,253 @@ import logging
 import datetime
 from pathlib import Path
 import keyboard
+from tkinter import *
+from tkinter import ttk, filedialog
+import auxiliary_functions
 
-LEGACY_BUTTON = ( 1540, 90 )
-ASCEND_BUTTON = ( 960, 600 )
-REINCARNATE_BUTTON = ( 960, 135 )
-CONFIRM_BUTTON = ( 940, 550 )
-BUY_ALL_BUTTON = ( 1820, 170 )
+def close_application():
+    global root, stop_threads
+    stop_threads.set()
+    root.destroy()
+
+def get_root_filepath():
+    global root_folder
+    root_folder = filedialog.askdirectory( title='Select folder', initialdir=os.path.join( os.environ['USERPROFILE'], 'Desktop', 'clicker' ) )
+    root_folder_label_return.config( text=root_folder )
+    
+def start_threads():
+    # Getting settings
+    global root_folder_label_return, entry_screen_type, fortune, fortune_sleep, entry_season, cookie_sleep, reindeer_sleep
+    global logger
+    global threads_list
+    global configs
+
+    # Setting logging
+    l_root_folder = root_folder_label_return.cget('text')
+    logger = auxiliary_functions.set_logging( l_root_folder, log_file_name='auto_ascender' )
+    
+	# Setting and starting thread
+    t = threading.Thread( target=auto_ascender, daemon=True ) # Using daemon=True as added security
+    t.start()
+    threads_list.append( t )
+    return threads_list
 
 def auto_ascender():
+    global logger, hk
+
     logger.info( 'Starting run' )
     count_ascensions = 0
-    while not stop_thread.is_set():
-        if keyboard.is_pressed('q'):
-            pyautogui.click( LEGACY_BUTTON )
+    i = 0
+    legacy_button = (used_coordinates_x[i].get(), used_coordinates_y[i].get())
+    i += 1
+    ascend_button = (used_coordinates_x[i].get(), used_coordinates_y[i].get())
+    i += 1
+    reincarnate_button = (used_coordinates_x[i].get(), used_coordinates_y[i].get())
+    i += 1
+    confirm_button = (used_coordinates_x[i].get(), used_coordinates_y[i].get())
+    i += 1
+    buy_all_button = (used_coordinates_x[i].get(), used_coordinates_y[i].get())
+    while not stop_threads.is_set():
+        if keyboard.is_pressed(hk.get()) and not stop_threads.is_set():
+            pyautogui.click( legacy_button )
             time.sleep(0.05)
-            pyautogui.click( ASCEND_BUTTON )
+            pyautogui.click( ascend_button )
             time.sleep(0.1)
             keyboard.send('esc')
             time.sleep(0.05)
-            pyautogui.click( REINCARNATE_BUTTON )
+            pyautogui.click( reincarnate_button )
             time.sleep(0.05)
-            pyautogui.click( CONFIRM_BUTTON )
+            pyautogui.click( confirm_button )
             time.sleep(0.05)
-            pyautogui.moveTo( BUY_ALL_BUTTON )
+            pyautogui.moveTo( buy_all_button )
             count_ascensions += 1
             logger.info( 'Number of ascensions this run: %d' % count_ascensions )
             time.sleep(3)
     logger.debug( 'Leaving thread loop' )
+    return
 
+def read_config_file_and_update_dialogs():
+    global root_folder_label_return
+    global logger
+    global configs
+    config_file = filedialog.askopenfilename( title='Select folder', initialdir=INITIAL_DIRECTORY, filetypes=[('Configuration files', '*.cfg')] )
+    try: configs = auxiliary_functions.read_configs( config_file )
+    except: print( f'Error: couldn\'t read file\nResponse from dialog was {config_file}' )
+    i = 0
+    for coords in configs.values():
+        used_coordinates_x[i].set( coords['x'] )
+        used_coordinates_y[i].set( coords['y'] )
+        i += 1
+        
 
+def save_configs():
+    global used_coordinates_x, used_coordinates_y
+    keys = [
+        'legacy_button_coords'
+		,'ascend_button_coords'
+		,'reincarnate_button_coords'
+		,'confirm_button_coords'
+		,'buy_all_button_coords'
+	]
+    config_file = filedialog.asksaveasfilename( title='Select file to save', initialdir=INITIAL_DIRECTORY, filetypes=[('Configuration files', '*.cfg')] )
+    confs = {}
+    i = 0
+    for key in keys:
+        confs[key] = { 'x': used_coordinates_x[i].get(), 'y': used_coordinates_y[i].get() }
+        i += 1
+    auxiliary_functions.save_configs_to_file( config_file, confs )
 
-#Setting logging path and file
-now = datetime.datetime.now()
-dt = now.strftime( "%Y%m%d_%H%M" )
+INITIAL_DIRECTORY = os.path.join( os.environ['USERPROFILE'], 'Desktop', 'clicker' )
 
+root = Tk()
+root.title("Cookie Clicker automations")
 
+default_coordinates = [
+	( 1540, 90 ) # DEFAULT_LEGACY_BUTTON
+	,( 960, 600 ) # DEFAULT_ASCEND_BUTTON
+	,( 960, 135 ) # DEFAULT_REINCARNATE_BUTTON
+	,( 940, 550 ) # DEFAULT_CONFIRM_BUTTON
+	,( 1820, 170 ) # DEFAULT_BUY_ALL_BUTTON
+]
 
-# Asking for the path where logs will be saved
-user_logger_input = input( 'Paste the full folder path you want to save your logs. Will default to desktop/clicker/logs if left empty\n')
-if user_logger_input is None or user_logger_input == '':
-    logger_folder = os.path.join( os.path.join( os.environ['USERPROFILE'] ), 'Desktop', 'clicker', 'logs' )
-else:
-    logger_folder = user_logger_input
+default_labels = [
+    'Legacy button'
+    ,'Ascend button'
+    ,'Reincarnate button'
+    ,'Confirm button'
+    ,'Buy all upgrades button'
+]
 
-logging_path = os.path.join( logger_folder, dt + '_auto_ascender.log' )
+used_coordinates_x = [
+    StringVar()
+	,StringVar()
+	,StringVar()
+	,StringVar()
+	,StringVar()
+]
 
+used_coordinates_y = [
+    StringVar()
+	,StringVar()
+	,StringVar()
+	,StringVar()
+	,StringVar()
+]
 
+threads_list = []
+stop_threads = threading.Event()
 
-# Creating logging file if it doesn't exist
-Path( logger_folder ).mkdir( parents=True, exist_ok=True )
-file = open( logging_path, 'a' )
-file.close()
+frame = ttk.Frame(root, padding="5 5 12 12")
+frame.grid(column=0, row=0, sticky=(N, W, E, S))
+root.columnconfigure(0, weight=1)
+root.rowconfigure(0, weight=1)
 
+row_num = 1
+column_num = 1
 
+# Read config file
+config_label = ttk.Label( frame, text='Open configuration file' )
+config_label.grid( row=row_num, column=column_num, sticky=(N, S, W, E))
+column_num += 1
+config_button = ttk.Button( frame, text='...', command=read_config_file_and_update_dialogs )
+config_button.grid( row=row_num, column=column_num, sticky=W )
+column_num += 1
+save_config_button = Button( frame, text='Save configs', command=save_configs )
+save_config_button.grid( row=row_num, column=column_num, sticky=W )
 
-# Setting loggers
-logger = logging.getLogger( 'Logger' )
-logger.setLevel( 'DEBUG' )
-formatter = logging.Formatter( fmt="{asctime} - {levelname} - {message}"
-                              ,style="{"
-                              ,datefmt="%Y-%m-%d %H:%M:%S"
-                              )
+row_num += 1
+column_num = 1
 
-console_handler = logging.StreamHandler()
-console_handler.setLevel( 'INFO' ) # Change this to DEBUG if debugging the script is needed
-console_handler.setFormatter( formatter )
-logger.addHandler( console_handler )
+# Separator
+sep = ttk.Separator( frame, orient='horizontal' )
+sep.grid( row=row_num, columnspan=4, sticky=EW )
 
-file_handler = logging.FileHandler( filename=logging_path, mode='a', encoding='utf-8' )
-file_handler.setLevel( 'INFO' )
-file_handler.setFormatter( formatter )
-logger.addHandler( file_handler )
+row_num += 1
+column_num = 1
 
+# Select root folder
+root_folder_label = ttk.Label( frame, text='Select image root directory' )
+root_folder_label.grid( row=row_num, column=column_num, sticky=(N, S, W, E))
+column_num += 1
+root_folder = StringVar()
+default_filepath = os.path.join( os.environ['USERPROFILE'], 'Desktop', 'clicker' )
+root_folder_label_return = ttk.Label( frame, padding=(15, 0), text=default_filepath, width=-10, background='white' )
+root_folder_label_return.grid( row=row_num, column=column_num, sticky=(N, S, W, E) )
+column_num += 1
+root_folder_button = ttk.Button( frame, text='...', command=get_root_filepath )
+root_folder_button.grid( row=row_num, column=column_num, sticky=(W, E) )
 
+row_num += 1
+column_num = 1
 
-# Setting and starting thread
-stop_thread = threading.Event()
-t = threading.Thread( target=auto_ascender, daemon=True ) # pyinsUsing daemon=True as added security
-t.start()
+# Separator
+sep = ttk.Separator( frame, orient='horizontal' )
+sep.grid( row=row_num, columnspan=4, sticky=EW )
 
-# This will hold the program on standby until you close the message box, then it will set the thread event to stop it
-ctypes.windll.user32.MessageBoxW(0, "Auto ascender still running\nPress OK or close this window to stop it", "Auto ascender", 0)
-stop_thread.set()
+row_num += 1
+column_num = 1
 
-t.join()
-logger.info( 'Golden Cookie auto clicker has been stopped' )
-ctypes.windll.user32.MessageBoxW(0, "Auto ascender has been stopped\n", "Auto ascender", 0)
+# Entry for the button to be checked
+static_label = ttk.Label( frame, text='Key that automatically ascends', )
+static_label.grid( row=row_num, column=column_num, sticky=W )
+column_num += 1
+hk = StringVar()
+hk_entry = ttk.Entry( frame, textvariable=hk, justify='center' )
+hk_entry.insert( index=0, string='q' )
+hk_entry.grid( row=row_num, column=column_num, sticky=W )
+
+row_num += 1
+column_num = 1
+
+# Separator
+sep = ttk.Separator( frame, orient='horizontal' )
+sep.grid( row=row_num, columnspan=4, sticky=EW )
+
+row_num += 1
+column_num = 1
+
+# Creates the entries for coordinates
+column_num = 2
+static_label = ttk.Label( frame, text='X', anchor='center' )
+static_label.grid( row=row_num, column=column_num, sticky=(N, S, W, E) )
+column_num += 1
+static_label = ttk.Label( frame, text='Y', anchor='center' )
+static_label.grid( row=row_num, column=column_num, sticky=(N, S, W, E) )
+
+row_num += 1
+column_num = 1
+
+labels = []
+x_entries = []
+y_entries = []
+for i in range(len( default_coordinates )):
+    x, y = default_coordinates[i]
+    label = ttk.Label( frame, text=default_labels[i] )
+    label.grid( row=row_num, column=column_num, sticky=(N, S, W, E) )
+    labels.append( label )
+    column_num += 1
+    x_entry = ttk.Entry( frame, textvariable=used_coordinates_x[i], justify='center' )
+    x_entry.insert( index=0, string=x )
+    x_entry.grid( row=row_num, column=column_num, sticky=(N, S, W, E) )
+    x_entries.append( x_entry )
+    column_num += 1
+    y_entry = ttk.Entry( frame, textvariable=used_coordinates_y[i], justify='center' )
+    y_entry.insert( index=0, string=y )
+    y_entry.grid( row=row_num, column=column_num, sticky=(N, S, W, E) )
+    y_entries.append( y_entry )
+    row_num += 1
+    column_num = 1
+
+column_num = 2
+
+# Buttons to start and cancel the application
+start_button = Button( frame, text='Start', bg='#ccffcc', command=start_threads )
+start_button.grid( row=row_num, column=column_num, sticky=E )
+column_num += 1
+cancel_button = Button( frame, text='Cancel/Stop', bg='#ffcccc', command=close_application )
+cancel_button.grid( row=row_num, column=column_num, sticky=W )
+
+for child in frame.winfo_children(): 
+    child.grid_configure(padx=5, pady=5)
+
+root.mainloop()
