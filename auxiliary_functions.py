@@ -16,7 +16,7 @@ def set_logging(root_folder, filename_timestamp_level='minute', log_file_name='e
     elif filename_timestamp_level == 'hour':
         dt = now.strftime( "%Y%m%d_%H" )
     elif filename_timestamp_level == 'second':
-        dt = now.strftime( "%Y%m%d_%H%M%s" )
+        dt = now.strftime( "%Y%m%d_%H%M%S" )
     else:
         dt = now.strftime( "%Y%m%d_%H%M" )
     log_folder = os.path.join( root_folder, 'logs' )
