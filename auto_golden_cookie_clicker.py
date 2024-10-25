@@ -33,6 +33,7 @@ def find_and_click_images(target, img_file_list, sleep):
                 pyautogui.click( x=x, y=y )
                 clicks += 1
                 logger.info( '%s found. Number of clicks this run: %d' % (target, clicks) )
+                pyautogui.moveTo(x=10, y=10)
         time.sleep( sleep )
     logger.debug( 'Leaving thread loop' )
     return
