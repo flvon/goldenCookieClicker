@@ -19,10 +19,10 @@ def close_application():
     stop_threads.set()
     root.destroy()
 
-def find_and_click_images(target, img_file_list, sleep):
+def find_and_click_images(target, img_file_list, reset_coordinates, sleep ):
     global logger
     clicks = 0
-    time.sleep( 5 )
+    
     while not stop_threads.is_set():
         logger.debug( 'Looking for %s' % target )
         for img in img_file_list:
@@ -33,7 +33,7 @@ def find_and_click_images(target, img_file_list, sleep):
                 pyautogui.click( x=x, y=y )
                 clicks += 1
                 logger.info( '%s found. Number of clicks this run: %d' % (target, clicks) )
-                pyautogui.moveTo(x=10, y=10)
+                pyautogui.moveTo(reset_coordinates)
         time.sleep( sleep )
     logger.debug( 'Leaving thread loop' )
     return
@@ -68,8 +68,10 @@ def save_configs():
     auxiliary_functions.save_configs_to_file( config_file, confs )
 
 def start_threads():
+    root.iconify()
+    time.sleep(1)
     # Getting settings
-    global root_folder_label_return, entry_screen_type, fortune, fortune_sleep, entry_season, cookie_sleep, reindeer_sleep
+    global root_folder_label_return, entry_screen_type, fortune, fortune_sleep, entry_season, cookie_sleep, reindeer, reindeer_sleep
     global logger
     global threads_list
     global configs
@@ -83,13 +85,16 @@ def start_threads():
     l_fortune_sleep = float(fortune_sleep.get())
     l_entry_season = entry_season.current()
     l_cookie_sleep = float(cookie_sleep.get())
+    l_click_reindeer = reindeer.get()
     l_reindeer_sleep = float(reindeer_sleep.get())
 
 
     logger.info( 'Starting application' )
 
     season_folder_list = [
-        'christmas'
+        'all_seasons'
+        ,'no_season'
+        ,'christmas'
         ,'halloween'
         ,'valentines'
         ,'business_day'
@@ -103,52 +108,52 @@ def start_threads():
     else:
         images_folder = os.path.join( l_root_folder, 'searched_images', 'default' )
 
-    if l_entry_season != 0:
-        season_folder = season_folder_list[l_entry_season - 1]
-    else: season_folder = 'no season'
+    season_folder = season_folder_list[l_entry_season]
+
+    # Setting reset coordinates to center of the big cookie
+    big_cookie_coords = pyautogui.locateCenterOnScreen(os.path.join(images_folder, 'big_cookie.png'))
+    if big_cookie_coords: reset_coords = big_cookie_coords
+    else: reset_coords = (75, 75)
 
     logger.info( f"""Configurations:
 Root folder: {str(l_root_folder)}
 Screen type: {l_screen_type}
 Season: {season_folder}
 Click fortune cookie: {str(l_click_fortune)}
+Mouse reset coordinates: {str(reset_coords[0])}, {str(reset_coords[1])}
 Sleep timess: 
 Golden Cookie: {str(l_cookie_sleep)}  |  Fortune:{str(l_fortune_sleep)}  |  Reindeer: {str(l_reindeer_sleep)}""" )
 
-
     # Setting thread that clicks on the golden cookie
     logger.info( 'Starting golden cookie clicker' )
-    if l_entry_season == 0 or l_entry_season == 1:
-        target_images = [ os.path.join( images_folder, 'golden_cookie.png' ) ]
-    else:
-        target_images = [ os.path.join(images_folder, season_folder, imgs) for imgs in os.listdir( os.path.join(images_folder, season_folder) ) if os.path.isfile( os.path.join(images_folder, season_folder, imgs) ) ]
-    golden_cookie_clicker = threading.Thread( target=find_and_click_images, args=( 'Golden Cookie', target_images, l_cookie_sleep, ), daemon=True ) # Using daemon=True as added security
+    target_images = [ os.path.join(images_folder, season_folder, 'golden_cookie', imgs) for imgs in os.listdir( os.path.join(images_folder, season_folder, 'golden_cookie') ) if os.path.isfile( os.path.join(images_folder, season_folder, 'golden_cookie', imgs) ) ]
+    golden_cookie_clicker = threading.Thread( target=find_and_click_images, args=( 'Golden Cookie', target_images, reset_coords, l_cookie_sleep, ), daemon=True ) # Using daemon=True as added security
     golden_cookie_clicker.start()
     threads_list.append( golden_cookie_clicker )
 
     # Setting thread that clicks on reindeer if Christmas Season is active
-    if l_entry_season == 1:
+    if l_click_reindeer == 1:
         logger.info( 'Starting reindeer clicker' )
         target_images = [ os.path.join(images_folder, season_folder, imgs) for imgs in os.listdir( os.path.join(images_folder, season_folder) ) if os.path.isfile( os.path.join(images_folder, season_folder, imgs) ) ]
-        reindeer_clicker = threading.Thread( target=find_and_click_images, args=( 'Reindeer', target_images, l_reindeer_sleep, ), daemon=True ) # Using daemon=True as added security
+        reindeer_clicker = threading.Thread( target=find_and_click_images, args=( 'Reindeer', target_images, reset_coords, l_reindeer_sleep, ), daemon=True ) # Using daemon=True as added security
         reindeer_clicker.start()
         threads_list.append( reindeer_clicker )
 
     if l_click_fortune == 1:
         # Setting thread that clicks on the fortune news ticker
         logger.info( 'Starting fortune news ticker clicker' )
-        target_images = [ os.path.join( images_folder, 'fortune_cookie.png' ) ]
-        fortune_clicker = threading.Thread( target=find_and_click_images, args=( 'Fortune', target_images, l_fortune_sleep, ), daemon=True ) # Using daemon=True as added security
+        target_images = [ os.path.join( images_folder, 'fortune_cookie', 'fortune_cookie.png' ) ]
+        fortune_clicker = threading.Thread( target=find_and_click_images, args=( 'Fortune', target_images, reset_coords, l_fortune_sleep, ), daemon=True ) # Using daemon=True as added security
         fortune_clicker.start()
         threads_list.append( fortune_clicker )
 
 INITIAL_DIRECTORY = os.path.join( os.environ['USERPROFILE'], 'Desktop', 'clicker' )
 DEFAULT_SCREEN_TYPE = "Monitor"
 DEFAULT_CLICK_FORTUNE = "0"
-DEFAULT_FORTUNE_SLEEP = "5.0"
+DEFAULT_FORTUNE_SLEEP = "1.0"
 DEFAULT_SEASON = "0"
-DEFAULT_GOLDEN_COOKIE_SLEEP = "5.0"
-DEFAULT_REINDEER_SLEEP = "5.0"
+DEFAULT_GOLDEN_COOKIE_SLEEP = "1.0"
+DEFAULT_REINDEER_SLEEP = "1.0"
 
 # Initializing config
 configs = {}
@@ -227,13 +232,33 @@ sep.grid( row=row_num, columnspan=4, sticky=(N, S, W, E) )
 row_num += 1
 column_num = 1
 
+# Column headers
+static_label = ttk.Label( frame, text='Select season')
+static_label.grid(row=row_num, column=column_num, sticky=(N, S, W, E))
+column_num += 1
+static_label = ttk.Label( frame, text='Time between searches')
+static_label.grid(row=row_num, column=column_num, sticky=(N, S, W, E))
+row_num += 1
+column_num = 1
+
+# Select the season
+entry_season = ttk.Combobox( frame, justify='center' , values=[ 'All seasons' ,'No season', 'Christmas', 'Halloween', 'Valentine\'s', 'Business Day', 'Easter' ] )
+entry_season.current( 0 )
+entry_season.grid( row=row_num, column=column_num, sticky=W )
+column_num += 1
+
+cookie_sleep = StringVar()
+cookie_sleep_entry = ttk.Entry( frame, textvariable=cookie_sleep, justify='center' )
+cookie_sleep_entry.insert( index=0, string=DEFAULT_GOLDEN_COOKIE_SLEEP )
+cookie_sleep_entry.grid( row=row_num, column=column_num, sticky=W )
+
+row_num += 1
+column_num = 1
+
 # Select if you want the program to click on fortune cookie news tickers
 fortune = IntVar()
 fortune_cookie = ttk.Checkbutton( frame, variable=fortune, text='Click fortune news tickers' )
 fortune_cookie.grid( row=row_num, column=column_num, sticky=W )
-column_num += 1
-fortune_cookie_sleep = ttk.Label( frame, text='Sleep times (seconds)' )
-fortune_cookie_sleep.grid( row=row_num, column=column_num, sticky=E )
 column_num += 1
 fortune_sleep = StringVar()
 fortune_sleep_entry = ttk.Entry( frame, textvariable=fortune_sleep, justify='center' )
@@ -243,32 +268,10 @@ fortune_sleep_entry.grid( row=row_num, column=column_num, sticky=W )
 row_num += 1
 column_num = 1
 
-# Select the season
-season_text = ttk.Label( frame, text='Select the season' )
-season_text.grid( row=row_num, column=column_num, sticky=(N, S, W, E) )
-column_num += 1
-entry_season = ttk.Combobox( frame, justify='center' , values=[ 'No season', 'Christmas', 'Halloween', 'Valentine\'s', 'Business Day', 'Easter' ] )
-entry_season.current( 0 )
-entry_season.grid( row=row_num, column=column_num, sticky=W )
-
-row_num += 1
-column_num = 1
-
-# Sleep times for golden cookie in seconds
-cookie_sleep_text = ttk.Label( frame, text='Sleep times for golden cookie (seconds)' )
-cookie_sleep_text.grid( row=row_num, column=column_num, sticky=(N, S, W, E) )
-column_num += 1
-cookie_sleep = StringVar()
-cookie_sleep_entry = ttk.Entry( frame, textvariable=cookie_sleep, justify='center' )
-cookie_sleep_entry.insert( index=0, string=DEFAULT_GOLDEN_COOKIE_SLEEP )
-cookie_sleep_entry.grid( row=row_num, column=column_num, sticky=W )
-
-row_num += 1
-column_num = 1
-
 # Sleep times for reindeer in seconds
-reindeer_sleep_text = ttk.Label( frame, text='Sleep times for reindeer (seconds)' )
-reindeer_sleep_text.grid( row=row_num, column=column_num, sticky=(N, S, W, E) )
+reindeer = IntVar()
+reindeer_click = ttk.Checkbutton( frame, variable=reindeer, text='Click reindeers' )
+reindeer_click.grid( row=row_num, column=column_num, sticky=W )
 column_num += 1
 reindeer_sleep = StringVar()
 reindeer_sleep_entry = ttk.Entry( frame, textvariable=reindeer_sleep, justify='center' )
